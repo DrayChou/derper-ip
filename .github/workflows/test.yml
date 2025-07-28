@@ -20,10 +20,30 @@ jobs:
       run: |
         echo "🔨 Testing derper build..."
         
-        # 直接安装 derper
-        go install tailscale.com/cmd/derper@latest
+        # 测试构建 Linux 版本
+        echo "Testing Linux build..."
+        go build -ldflags="-s -w" -o derper-test tailscale.com/cmd/derper@latest
         
-        # 验证安装
-        which derper || echo "derper installed in $(go env GOPATH)/bin/"
+        if [ -f "derper-test" ]; then
+          echo "✅ Linux build successful"
+          ls -la derper-test
+          file derper-test
+        else
+          echo "❌ Linux build failed"
+          exit 1
+        fi
         
-        echo "✅ Build test completed"
+        # 测试交叉编译到 Windows
+        echo "Testing Windows cross-compilation..."
+        env CGO_ENABLED=0 GOOS=windows GOARCH=amd64 \
+          go build -ldflags="-s -w" -o derper-test.exe tailscale.com/cmd/derper@latest
+        
+        if [ -f "derper-test.exe" ]; then
+          echo "✅ Windows cross-compilation successful"
+          ls -la derper-test.exe
+        else
+          echo "❌ Windows cross-compilation failed"
+          exit 1
+        fi
+        
+        echo "✅ All build tests completed"

@@ -17,23 +17,10 @@ jobs:
       with:
         go-version: '1.24'
     
-    - name: Prepare Build Environment
-      run: |
-        echo "📥 Setting up build environment..."
-        mkdir -p dist
-        
-        # 初始化 Go 模块
-        go mod init build-derper
-        go get tailscale.com/cmd/derper@latest
-        
-        # 创建 main.go
-        printf 'package main\n\nimport "tailscale.com/cmd/derper"\n\nfunc main() {\n    derper.Main()\n}\n' > main.go
-        
-        echo "✅ Build environment ready"
-
     - name: Build All Platforms
       run: |
         echo "🚀 Building derper for all platforms..."
+        mkdir -p dist
         
         # 定义平台
         declare -A platforms=(
@@ -45,7 +32,7 @@ jobs:
           ["darwin-arm64"]="darwin arm64"
         )
         
-        # 构建所有平台
+        # 为每个平台构建
         for name in "${!platforms[@]}"; do
           IFS=' ' read -r goos goarch goarm <<< "${platforms[$name]}"
           
@@ -56,12 +43,15 @@ jobs:
             ext=".exe"
           fi
           
-          # 交叉编译
-          env CGO_ENABLED=0 GOOS=$goos GOARCH=$goarch GOARM=$goarm \
-            go build -ldflags="-s -w" -o "dist/derper-$name$ext" .
+          # 直接安装 derper 到指定位置
+          output_file="dist/derper-$name$ext"
           
-          if [ -f "dist/derper-$name$ext" ]; then
-            size=$(du -h "dist/derper-$name$ext" | cut -f1)
+          # 使用 go install 并指定输出路径
+          env CGO_ENABLED=0 GOOS=$goos GOARCH=$goarch GOARM=$goarm \
+            go build -ldflags="-s -w" -o "$output_file" tailscale.com/cmd/derper@latest
+          
+          if [ -f "$output_file" ]; then
+            size=$(du -h "$output_file" | cut -f1)
             echo "✅ Built: derper-$name$ext ($size)"
           else
             echo "❌ Failed: derper-$name$ext"
