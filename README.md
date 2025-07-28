@@ -1,224 +1,295 @@
 # Tailscale DERP Server Docker Deployment
 
-这个项目提供了一个完整的 Tailscale DERP 服务器 Docker 部署方案，支持使用 IP 地址和自签名证书进行部署，无需域名和 SSL 证书。
+This repository contains a Docker-based deployment for a Tailscale DERP (Designated Encrypted Relay for Packets) server. DERP servers help Tailscale clients communicate when direct connections aren't possible due to NAT or firewalls.
 
-## 灵感来源
+## Features
 
-本项目的实现基于以下文章的指导：
-- [Tailscale官方支持纯IP部署DERP中继服务器](https://fuguebit.com/2025/05/tailscale%E5%AE%98%E6%96%B9%E6%94%AF%E6%8C%81%E7%BA%AFip%E9%83%A8%E7%BD%B2derp%E4%B8%AD%E7%BB%A7%E6%9C%8D%E5%8A%A1%E5%99%A8/)
+- 🐳 **Docker-based deployment** with multi-stage build
+- 🔒 **SSL/TLS support** with Let's Encrypt or manual certificates
+- 📊 **Health checks** and monitoring capabilities
+- 🔄 **Auto-restart** and container management
+- 🚀 **GitHub Actions** for automated builds
+- 📝 **Comprehensive logging** with configurable verbosity
+- 🛡️ **Security hardened** with non-root user
 
-## 功能特性
+## Quick Start
 
-- 🚀 基于官方 Tailscale DERP 服务器
-- 🔒 支持 IP 地址部署，无需域名
-- 📝 自动生成自签名证书
-- ⚙️ 完全可配置的参数
-- 🐳 Docker 容器化部署
-- 📊 健康检查和日志记录
-- 🔄 自动重启机制
+### Prerequisites
 
-## 快速开始
+- Docker and Docker Compose installed
+- A domain name (for production deployment)
+- SSL certificates (for HTTPS)
 
-### 1. 克隆或创建项目
+### Basic Deployment
 
-确保你的目录结构如下：
-```
-derp/
-├── Dockerfile
-├── docker-compose.yml
-├── start.sh
-├── .env.example
-└── README.md
+1. Clone this repository:
+```bash
+git clone <repository-url>
+cd docker/derp
 ```
 
-### 2. 配置环境变量
-
-复制示例配置文件：
+2. Copy the environment template:
 ```bash
 cp .env.example .env
 ```
 
-编辑 `.env` 文件，修改为你的服务器 IP：
+3. Edit the `.env` file with your configuration:
 ```bash
-# 替换为你的服务器公网 IP
-DERP_HOSTNAME=88.88.88.88
-DERP_HTTP_PORT=9003
-DERP_STUN_PORT=9004
+# Required: Your domain name
+DERP_DOMAIN=your-domain.com
+DERP_HOSTNAME=derp-server
+
+# Certificate configuration
+DERP_CERTMODE=manual  # or 'letsencrypt'
+DERP_CERTDIR=/certs
+
+# Optional: STUN configuration
+DERP_STUN=true
+DERP_STUN_PORT=3478
 ```
 
-### 3. 部署服务
-
+4. Place your SSL certificates in the `certs` directory:
 ```bash
-# 构建并启动服务
+mkdir -p certs
+# Copy your certificate files:
+# certs/your-domain.com.crt
+# certs/your-domain.com.key
+```
+
+5. Start the DERP server:
+```bash
 docker-compose up -d
-
-# 查看日志
-docker-compose logs -f derper
-
-# 查看服务状态
-docker-compose ps
 ```
 
-### 4. 防火墙配置
+6. Check the status:
+```bash
+docker-compose logs -f derp
+```
 
-确保服务器防火墙开放端口：
-- TCP 9003 (HTTP)
-- UDP 9004 (STUN)
+## Configuration
 
-## 配置参数
+### Environment Variables
 
-| 环境变量 | 默认值 | 说明 |
-|---------|--------|------|
-| `DERP_HOSTNAME` | localhost | DERP 服务器主机名或 IP 地址 |
-| `DERP_HTTP_PORT` | 9003 | HTTP 服务端口 |
-| `DERP_STUN_PORT` | 9004 | STUN 服务端口 |
-| `DERP_VERIFY_CLIENTS` | false | 是否验证客户端 |
-| `DERP_CERT_MODE` | manual | 证书模式 (manual/letsencrypt) |
-| `DERP_CERT_DIR` | /var/lib/derper | 证书存储目录 |
-| `DERP_LOG_LEVEL` | info | 日志级别 (info/debug) |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DERP_DOMAIN` | `localhost` | Domain name for the DERP server |
+| `DERP_CERTMODE` | `manual` | Certificate mode: `manual` or `letsencrypt` |
+| `DERP_CERTDIR` | `/certs` | Directory containing SSL certificates |
+| `DERP_HOSTNAME` | `derp-server` | Hostname for the server |
+| `DERP_STUN` | `true` | Enable STUN server functionality |
+| `DERP_STUN_PORT` | `3478` | STUN server port |
+| `DERP_HTTP_PORT` | `80` | HTTP port |
+| `DERP_HTTPS_PORT` | `443` | HTTPS port |
+| `DERP_LOGFILE` | `/var/log/derper/derper.log` | Log file path |
+| `DERP_VERBOSE` | `false` | Enable verbose logging |
+| `DERP_VERIFY_CLIENTS` | `false` | Verify client certificates |
 
-## 获取 DERP 服务器信息
+### Certificate Management
 
-启动服务后，查看日志获取服务器信息：
+#### Manual Certificates
+
+Place your certificate files in the `certs` directory:
+- `certs/your-domain.com.crt` - SSL certificate
+- `certs/your-domain.com.key` - SSL private key
+
+#### Let's Encrypt (Automatic)
+
+Set `DERP_CERTMODE=letsencrypt` in your `.env` file. The server will automatically obtain and renew certificates.
+
+## Deployment Options
+
+### Development Deployment
+
+For local development and testing:
 
 ```bash
-docker-compose logs derper
+# Use the default configuration
+docker-compose up -d
 ```
 
-在日志中找到类似以下的信息：
+### Production Deployment
+
+For production deployments with monitoring:
+
+```bash
+# Start with monitoring services
+docker-compose --profile monitoring up -d
 ```
-DERP server: region 999 is http://88.88.88.88:9003/derp with key [base64-encoded-key]
+
+### Custom Deployment Scripts
+
+Use the provided deployment scripts:
+
+```bash
+# Deploy to local Docker
+./deploy.sh
+
+# Deploy to GitHub Container Registry
+./deploy-github.sh
 ```
 
-这些信息需要添加到 Tailscale 的 Access Controls 中。
+## Networking
 
-## Tailscale 客户端配置
+The DERP server exposes the following ports:
 
-### 1. 获取服务器密钥
+- **80/tcp** - HTTP (redirects to HTTPS)
+- **443/tcp** - HTTPS (main DERP protocol)
+- **3478/udp** - STUN server (optional)
 
-从日志中复制 base64 编码的密钥。
+Ensure these ports are open in your firewall and properly forwarded if running behind NAT.
 
-### 2. 配置 Access Controls
+## Monitoring and Health Checks
 
-在 Tailscale 控制台的 Access Controls 中添加：
+### Health Check Endpoint
+
+The server provides a health check endpoint at:
+```
+http://your-domain.com/derp/probe
+```
+
+### Logs
+
+View real-time logs:
+```bash
+# View DERP server logs
+docker-compose logs -f derp
+
+# View all service logs
+docker-compose logs -f
+```
+
+### Container Status
+
+Check container status:
+```bash
+# Check running containers
+docker-compose ps
+
+# Check resource usage
+docker stats
+```
+
+## Tailscale Client Configuration
+
+### Adding Your DERP Server
+
+To use your custom DERP server with Tailscale clients, you need to configure a custom DERP map. Create a JSON file:
 
 ```json
 {
-  "derpMap": {
-    "regions": {
-      "999": {
-        "regionId": 999,
-        "regionCode": "custom",
-        "regionName": "Custom DERP",
-        "nodes": [
-          {
-            "name": "custom-derp",
-            "regionId": 999,
-            "hostname": "88.88.88.88",
-            "ipv4": "88.88.88.88",
-            "derpport": 9003,
-            "stunport": 9004,
-            "stunonly": false,
-            "derpTestPort": 0,
-            "key": "your-base64-encoded-key-here"
-          }
-        ]
-      }
+  "Regions": {
+    "900": {
+      "RegionID": 900,
+      "RegionCode": "custom",
+      "RegionName": "Custom DERP",
+      "Nodes": [
+        {
+          "Name": "custom-derp",
+          "RegionID": 900,
+          "HostName": "your-domain.com",
+          "DERPPort": 443,
+          "STUNPort": 3478
+        }
+      ]
     }
   }
 }
 ```
 
-## 维护命令
+### Client Configuration
+
+Configure Tailscale clients to use your DERP server:
 
 ```bash
-# 查看容器状态
-docker-compose ps
-
-# 查看实时日志
-docker-compose logs -f
-
-# 重启服务
-docker-compose restart
-
-# 停止服务
-docker-compose down
-
-# 完全清理（包括数据卷）
-docker-compose down -v
-
-# 重新构建镜像
-docker-compose build --no-cache
+# Set custom DERP map
+tailscale set --advertise-exit-node --derp-map-file=/path/to/derp-map.json
 ```
 
-## 故障排除
+## Troubleshooting
 
-### 1. 端口被占用
+### Common Issues
 
-检查端口是否已被使用：
+1. **Certificate errors**: Ensure your SSL certificates are valid and properly placed
+2. **Port conflicts**: Check that ports 80, 443, and 3478 are not in use by other services
+3. **DNS issues**: Verify your domain name resolves to the correct IP address
+4. **Firewall blocking**: Ensure firewall rules allow traffic on required ports
+
+### Debug Mode
+
+Enable verbose logging for troubleshooting:
+
 ```bash
-netstat -tulpn | grep :9003
-netstat -tulpn | grep :9004
+# Edit .env file
+DERP_VERBOSE=true
+
+# Restart the service
+docker-compose restart derp
 ```
 
-### 2. 证书问题
+### Log Investigation
 
-清理证书重新生成：
+Check logs for issues:
+
 ```bash
-docker-compose down
-docker volume rm derp_derper_data
-docker-compose up -d
+# Check startup logs
+docker-compose logs derp | head -50
+
+# Follow real-time logs
+docker-compose logs -f derp
+
+# Check host system logs
+journalctl -u docker
 ```
 
-### 3. 防火墙问题
+## GitHub Actions CI/CD
 
-确保防火墙规则正确：
-```bash
-# Ubuntu/Debian
-sudo ufw allow 9003/tcp
-sudo ufw allow 9004/udp
+This repository includes GitHub Actions workflows for automated building and deployment:
 
-# CentOS/RHEL
-sudo firewall-cmd --permanent --add-port=9003/tcp
-sudo firewall-cmd --permanent --add-port=9004/udp
-sudo firewall-cmd --reload
-```
+- **Build and Test**: Automatically builds the Docker image on every push
+- **Release**: Creates releases and pushes images to GitHub Container Registry
+- **Security Scanning**: Scans Docker images for vulnerabilities
 
-## 性能优化
+### Setting Up GitHub Actions
 
-### 1. 资源限制
+1. Enable GitHub Actions in your repository
+2. Set up the following secrets in your repository settings:
+   - `DOCKER_USERNAME` - Docker Hub username (optional)
+   - `DOCKER_TOKEN` - Docker Hub access token (optional)
 
-在 `docker-compose.yml` 中添加资源限制：
-```yaml
-deploy:
-  resources:
-    limits:
-      cpus: '0.5'
-      memory: 512M
-    reservations:
-      cpus: '0.1'
-      memory: 128M
-```
+The workflow will automatically:
+- Build the Docker image
+- Run security scans
+- Push to GitHub Container Registry
+- Create releases for tagged commits
 
-### 2. 日志轮转
+## Security Considerations
 
-配置日志轮转防止日志文件过大：
-```yaml
-logging:
-  driver: "json-file"
-  options:
-    max-size: "10m"
-    max-file: "3"
-```
+- 🔒 **Non-root container**: Runs as unprivileged user
+- 🛡️ **Minimal base image**: Uses Alpine Linux for reduced attack surface
+- 🔐 **SSL/TLS required**: All traffic encrypted
+- 📝 **Audit logging**: Comprehensive logging for security monitoring
+- 🚫 **No unnecessary services**: Only runs required components
 
-## 安全建议
+## Contributing
 
-1. 定期更新镜像：`docker-compose pull && docker-compose up -d`
-2. 使用非 root 用户运行（已在 Dockerfile 中配置）
-3. 限制网络访问（仅开放必要端口）
-4. 启用防火墙和入侵检测
-5. 定期备份配置和证书
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-## 许可证
+## Support
 
-本项目基于 MIT 许可证开源。Tailscale DERP 服务器遵循其自身的许可证条款。
+- 📚 **Tailscale Docs**: https://tailscale.com/kb/
+- 🐛 **Issues**: Report issues in this repository
+- 💬 **Community**: Join the Tailscale community discussions
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Tailscale team for the excellent DERP implementation
+- Docker community for containerization best practices
+- Alpine Linux for providing a secure, minimal base image
