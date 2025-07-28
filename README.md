@@ -1,324 +1,118 @@
-# Tailscale DERP Server - 跨平台部署方案
+# Tailscale DERP Server - 一键安装脚本
 
-[![Build Status](https://github.com/your-username/derper-ip/workflows/Build%20Cross-Platform%20Binaries/badge.svg)](https://github.com/your-username/derper-ip/actions)
-[![Release](https://img.shields.io/github/v/release/your-username/derper-ip)](https://github.com/your-username/derper-ip/releases)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+本项目提供一个**一键安装脚本**，用于在 Linux 服务器上快速部署 Tailscale DERP 中继服务器。
 
-本项目提供 **跨平台二进制文件** 和 **Docker 部署** 两种方案，用于部署 Tailscale DERP (Designated Encrypted Relay for Packets) 服务器。DERP 服务器帮助 Tailscale 客户端在无法直接连接时进行通信。
+## 特色功能
 
-## ✨ 项目特色
+- 🌍 **智能区域检测** - 自动识别国内/海外服务器，选择最佳下载源
+- 🚀 **一键部署** - 自动安装 Go 环境、编译并启动 DERP 服务
+- 🔒 **IP 地址部署** - 自动获取公网 IP，生成自签名证书
 
-- 🚀 **跨平台二进制文件** - Linux, Windows, macOS, FreeBSD
-- 🐳 **Docker 部署选项** - 支持容器化部署
-- 🔒 **IP 地址部署** - 自动生成自签名证书，无需域名
-- ⚙️ **简单配置** - 环境变量或命令行参数
-- 🔄 **systemd 集成** - Linux 生产环境服务管理
-- 🎯 **GitHub Actions** - 自动化跨平台编译
-- 📋 **部署脚本** - 开箱即用的启动和部署脚本
+## 快速开始
 
-## 🚀 快速开始
+### 系统要求
+- Ubuntu 18.04+ 或 CentOS 7+
+- sudo 权限
+- 能够访问互联网
 
-### 方案一：二进制文件部署（推荐）
-
-#### 1. 下载二进制文件
-
-从 [Releases 页面](../../releases) 下载适合你系统的二进制文件：
+### 一键安装
 
 ```bash
-# Linux AMD64
-wget https://github.com/your-username/derper-ip/releases/latest/download/derper-linux-amd64.tar.gz
-tar -xzf derper-linux-amd64.tar.gz
-cd derper-linux-amd64
-
-# Windows AMD64 (PowerShell)
-Invoke-WebRequest -Uri "https://github.com/your-username/derper-ip/releases/latest/download/derper-windows-amd64.zip" -OutFile "derper-windows-amd64.zip"
-Expand-Archive derper-windows-amd64.zip
-cd derper-windows-amd64
+# 下载并运行安装脚本
+curl -fsSL https://raw.githubusercontent.com/DrayChou/derper-ip/master/install_derper.sh | bash
 ```
 
-#### 2. 快速启动
+或者分步执行：
 
 ```bash
-# Linux/macOS/FreeBSD
-./start.sh 你的服务器IP 9003 9004
+# 下载脚本
+wget https://raw.githubusercontent.com/DrayChou/derper-ip/master/install_derper.sh
 
-# Windows
-start.bat 你的服务器IP 9003 9004
-
-# 示例
-./start.sh 88.88.88.88 9003 9004
+# 运行安装
+chmod +x install_derper.sh
+./install_derper.sh
 ```
 
-#### 3. 生产环境部署（Linux）
+## 配置选项
+
+修改脚本开头的配置项：
 
 ```bash
-# 使用 systemd 管理服务
-sudo ./deploy.sh 88.88.88.88 9003 9004
-
-# 查看服务状态
-sudo systemctl status derper
-sudo journalctl -u derper -f
+DERP_PORT=9003      # DERP 服务端口
+STUN_PORT=9004      # STUN 服务端口
+CERT_DIR="./"       # 证书存放目录
 ```
 
-### 方案二：Docker 部署
+## 防火墙配置
 
-#### 1. 准备配置文件
+安装完成后，确保开放对应端口：
 
 ```bash
-git clone https://github.com/your-username/derper-ip.git
-cd derper-ip
-cp .env.example .env
-```
-
-#### 2. 编辑配置
-
-```bash
-# 编辑 .env 文件
-DERP_HOSTNAME=88.88.88.88    # 你的服务器IP
-DERP_HTTP_PORT=9003
-DERP_STUN_PORT=9004
-DERP_VERIFY_CLIENTS=true
-```
-
-#### 3. 启动服务
-
-```bash
-docker-compose up -d
-
-# 查看日志
-docker-compose logs -f derp
-```
-
-## 📦 支持平台
-
-| 平台 | 架构 | 二进制文件名 |
-|------|------|-------------|
-| **Linux** | AMD64 | `derper-linux-amd64` |
-| **Linux** | ARM64 | `derper-linux-arm64` |
-| **Linux** | ARMv7 | `derper-linux-armv7` |
-| **Windows** | AMD64 | `derper-windows-amd64.exe` |
-| **Windows** | ARM64 | `derper-windows-arm64.exe` |
-| **macOS** | Intel | `derper-darwin-amd64` |
-| **macOS** | Apple Silicon | `derper-darwin-arm64` |
-| **FreeBSD** | AMD64 | `derper-freebsd-amd64` |
-
-## ⚙️ 配置说明
-
-### 环境变量
-
-| 变量名 | 默认值 | 说明 |
-|--------|--------|------|
-| `DERP_HOSTNAME` | `localhost` | 服务器 IP 地址或主机名 |
-| `DERP_HTTP_PORT` | `9003` | HTTP 服务端口 |
-| `DERP_STUN_PORT` | `9004` | STUN 服务端口 |
-| `DERP_VERIFY_CLIENTS` | `true` | 是否验证客户端证书 |
-
-### 命令行参数
-
-```bash
-# 基本用法
-./derper-linux-amd64 --hostname=YOUR_IP -certmode manual -certdir ./ -http-port -1 -a :9003 -stun-port 9004 -verify-clients
-
-# 使用启动脚本
-./start.sh [hostname] [http_port] [stun_port]
-./deploy.sh [hostname] [http_port] [stun_port]
-```
-
-## 🔧 部署详解
-
-### Linux 生产环境
-
-```bash
-# 1. 下载并解压
-wget https://github.com/your-username/derper-ip/releases/latest/download/derper-linux-amd64.tar.gz
-tar -xzf derper-linux-amd64.tar.gz
-cd derper-linux-amd64
-
-# 2. 部署为 systemd 服务
-sudo ./deploy.sh 88.88.88.88 9003 9004
-
-# 3. 服务管理
-sudo systemctl status derper      # 查看状态
-sudo systemctl restart derper     # 重启服务
-sudo systemctl stop derper        # 停止服务
-sudo journalctl -u derper -f      # 查看日志
-```
-
-### Windows 服务器
-
-```cmd
-REM 1. 解压文件到目录
-unzip derper-windows-amd64.zip
-cd derper-windows-amd64
-
-REM 2. 前台运行测试
-start.bat 88.88.88.88 9003 9004
-
-REM 3. 使用 PM2 管理（需先安装 Node.js 和 PM2）
-pm2 start "derper-windows-amd64.exe --hostname=88.88.88.88 -certmode manual -certdir ./certs -http-port -1 -a :9003 -stun-port 9004 -verify-clients" --name derper
-pm2 save
-pm2 startup
-```
-
-### macOS/FreeBSD
-
-```bash
-# 1. 下载并解压
-curl -L -o derper-darwin-amd64.tar.gz https://github.com/your-username/derper-ip/releases/latest/download/derper-darwin-amd64.tar.gz
-tar -xzf derper-darwin-amd64.tar.gz
-cd derper-darwin-amd64
-
-# 2. 快速启动
-./start.sh 88.88.88.88 9003 9004
-
-# 3. 后台运行
-nohup ./start.sh 88.88.88.88 9003 9004 > derper.log 2>&1 &
-```
-
-## 🌐 网络配置
-
-### 防火墙设置
-
-```bash
-# Linux (ufw)
+# Ubuntu/Debian
 sudo ufw allow 9003/tcp
 sudo ufw allow 9004/udp
 
-# Linux (iptables)
-sudo iptables -A INPUT -p tcp --dport 9003 -j ACCEPT
-sudo iptables -A INPUT -p udp --dport 9004 -j ACCEPT
-
-# Windows (PowerShell 管理员)
-New-NetFirewallRule -DisplayName "DERP HTTP" -Direction Inbound -Protocol TCP -LocalPort 9003 -Action Allow
-New-NetFirewallRule -DisplayName "DERP STUN" -Direction Inbound -Protocol UDP -LocalPort 9004 -Action Allow
+# CentOS/RHEL
+sudo firewall-cmd --permanent --add-port=9003/tcp
+sudo firewall-cmd --permanent --add-port=9004/udp
+sudo firewall-cmd --reload
 ```
 
-### 端口说明
+**云服务器用户**：还需要在云控制台的安全组中开放这些端口。
 
-| 端口 | 协议 | 用途 | 必须开放 |
-|------|------|------|----------|
-| 9003 | TCP | DERP HTTP 服务 | ✅ 是 |
-| 9004 | UDP | STUN 服务 | ✅ 是 |
+## 后台运行
 
-## 🔒 证书管理
-
-### 自动生成（推荐）
-
-使用 IP 地址作为主机名时，DERP 服务器会自动生成自签名证书：
+脚本默认前台运行，如需后台运行：
 
 ```bash
-# 证书会保存在 certs/ 目录
-ls certs/
-# 88.88.88.88.crt
-# 88.88.88.88.key
+# 使用 nohup
+nohup ./install_derper.sh > derper.log 2>&1 &
+
+# 或创建 systemd 服务
+sudo tee /etc/systemd/system/derper.service << EOF
+[Unit]
+Description=Tailscale DERP Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/derper --hostname=YOUR_SERVER_IP -certmode manual -certdir /opt/derper/certs -http-port -1 -a :9003 -stun-port 9004 -verify-clients
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl enable derper
+sudo systemctl start derper
 ```
 
-### 自定义证书
+## 常见问题
 
-如需使用自定义证书，将证书文件放在 `certs` 目录：
+**安装失败？**
+- 检查网络连接：`curl -I https://mirrors.aliyun.com/golang/`
+- 检查sudo权限：`sudo -v`
 
+**端口被占用？**
+- 检查端口：`lsof -i :9003`
+- 修改脚本中的端口配置
+
+**测试服务是否正常？**
 ```bash
-mkdir -p certs
-# 复制你的证书文件
-cp your-cert.crt certs/
-cp your-cert.key certs/
+# 检查进程
+ps aux | grep derper
+
+# 测试连接
+curl -k https://YOUR_SERVER_IP:9003/derp/probe
 ```
 
-## 🔍 故障排除
+## 脚本功能
 
-### 常见问题
-
-1. **端口占用**
-   ```bash
-   # 检查端口占用
-   netstat -tlnp | grep :9003
-   netstat -ulnp | grep :9004
-   ```
-
-2. **权限问题**
-   ```bash
-   # 确保二进制文件有执行权限
-   chmod +x derper-linux-amd64
-   chmod +x start.sh deploy.sh
-   ```
-
-3. **防火墙阻止**
-   ```bash
-   # 临时关闭防火墙测试
-   sudo ufw disable  # Ubuntu
-   sudo systemctl stop firewalld  # CentOS
-   ```
-
-### 日志查看
-
-```bash
-# systemd 服务日志
-sudo journalctl -u derper -f
-
-# Docker 日志
-docker-compose logs -f derp
-
-# 直接运行时的日志
-./start.sh 88.88.88.88 9003 9004 > derper.log 2>&1
-```
-
-## 🏗️ 构建说明
-
-### 本地构建
-
-```bash
-# 克隆项目
-git clone https://github.com/your-username/derper-ip.git
-cd derper-ip
-
-# 安装 Go 1.24+
-# 直接编译当前平台
-go install tailscale.com/cmd/derper@v1.82.1
-
-# 交叉编译其他平台
-GOOS=linux GOARCH=amd64 go install tailscale.com/cmd/derper@v1.82.1
-GOOS=windows GOARCH=amd64 go install tailscale.com/cmd/derper@v1.82.1
-```
-
-### GitHub Actions
-
-项目包含两个工作流：
-
-- **构建测试** (`.github/workflows/build-binaries.yml`) - 每次推送都会测试构建
-- **发布版本** (`.github/workflows/release-binaries.yml`) - 创建 tag 时自动构建并发布
-
-创建发布版本：
-
-```bash
-# 创建并推送 tag
-git tag v1.0.0
-git push origin v1.0.0
-
-# GitHub Actions 会自动构建所有平台的二进制文件并创建 Release
-```
-
-## 🤝 贡献指南
-
-1. Fork 本项目
-2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add some amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 开启 Pull Request
-
-## 📄 许可证
-
-本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
-
-## 🙏 致谢
-
-- [Tailscale](https://tailscale.com/) 团队提供优秀的 DERP 实现
-- [Go](https://golang.org/) 团队提供强大的跨平台编译能力
-- 社区贡献者们的支持和反馈
+1. **智能下载源**：国内服务器自动使用阿里云镜像
+2. **Go环境管理**：自动安装最新版Go并配置环境
+3. **DERP编译**：编译最新版Tailscale DERP服务
+4. **自动配置**：获取公网IP并启动服务
 
 ---
 
-**⚡ 快速链接**
-- [📥 下载二进制文件](../../releases)
-- [🐛 报告问题](../../issues)
-- [💬 讨论](../../discussions)
-- [📚 Tailscale 文档](https://tailscale.com/kb/)
+**问题反馈**：[GitHub Issues](https://github.com/DrayChou/derper-ip/issues)
