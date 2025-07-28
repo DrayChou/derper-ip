@@ -1,0 +1,33 @@
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+
+# Docker volumes and data
+data/
+logs/
+*.log
+
+# Certificate files (will be auto-generated)
+*.pem
+*.crt
+*.key
+*.cert
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
