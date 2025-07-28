@@ -1,0 +1,28 @@
+# Tailscale DERP server configuration file
+
+# Server configuration
+addr: ":9003"                    # Listen address for HTTPS/HTTP
+http-port: -1                    # HTTP port (-1 to disable)
+stun-port: 9004                  # STUN port
+hostname: "localhost"            # Server hostname
+
+# Certificate configuration  
+certmode: "manual"               # Certificate mode: manual or letsencrypt
+certdir: "/var/lib/derper"       # Certificate directory
+
+# Features
+derp: true                       # Enable DERP server
+stun: true                       # Enable STUN server
+verify-clients: false            # Verify clients through local tailscaled
+
+# Development mode
+dev: false                       # Development mode (localhost only)
+
+# Rate limiting
+accept-connection-limit: 1000    # Rate limit for new connections
+accept-connection-burst: 100     # Burst limit for new connections
+
+# TCP settings
+tcp-keepalive-time: "10m"        # TCP keepalive time
+tcp-user-timeout: "15s"          # TCP user timeout
+tcp-write-timeout: "0s"          # TCP write timeout (0 = no timeout)

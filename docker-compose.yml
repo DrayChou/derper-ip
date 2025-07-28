@@ -1,73 +1,37 @@
 version: '3.8'
 
 services:
-  derp:
+  derper:
     build: .
-    container_name: tailscale-derp
+    container_name: derper
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
-      - "3478:3478/udp"  # STUN port
-    volumes:
-      - ./data:/var/lib/derper
-      - ./logs:/var/log/derper
-      - ./certs:/certs:ro
+      - "${DERP_HTTP_PORT:-9003}:9003"
+      - "${DERP_STUN_PORT:-9004}:9004/udp"
     environment:
-      # Server configuration
-      - DERP_DOMAIN=${DERP_DOMAIN:-localhost}
-      - DERP_CERTMODE=${DERP_CERTMODE:-manual}
-      - DERP_CERTDIR=${DERP_CERTDIR:-/certs}
-      - DERP_HOSTNAME=${DERP_HOSTNAME:-derp-server}
-      
-      # STUN configuration
-      - DERP_STUN=${DERP_STUN:-true}
-      - DERP_STUN_PORT=${DERP_STUN_PORT:-3478}
-      
-      # Logging configuration
-      - DERP_LOGFILE=${DERP_LOGFILE:-/var/log/derper/derper.log}
-      - DERP_VERBOSE=${DERP_VERBOSE:-false}
-      
-      # Rate limiting
-      - DERP_MESH_WITH=${DERP_MESH_WITH:-}
-      - DERP_BOOTSTRAP_DNS=${DERP_BOOTSTRAP_DNS:-}
-      
-      # Verify clients (optional)
+      - DERP_HOSTNAME=${DERP_HOSTNAME:-localhost}
+      - DERP_HTTP_PORT=${DERP_HTTP_PORT:-9003}
+      - DERP_STUN_PORT=${DERP_STUN_PORT:-9004}
       - DERP_VERIFY_CLIENTS=${DERP_VERIFY_CLIENTS:-false}
-      
-      # HTTP configuration
-      - DERP_HTTP_PORT=${DERP_HTTP_PORT:-80}
-      - DERP_HTTPS_PORT=${DERP_HTTPS_PORT:-443}
-      
+      - DERP_CERT_MODE=${DERP_CERT_MODE:-manual}
+      - DERP_CERT_DIR=${DERP_CERT_DIR:-/var/lib/derper}
+      - DERP_LOG_LEVEL=${DERP_LOG_LEVEL:-info}
+    volumes:
+      - derper_data:/var/lib/derper
+      - ./logs:/var/log/derper
     networks:
-      - derp-network
+      - derper_net
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/derp/probe"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9003/"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
-
-  # Optional: Add a monitoring service
-  watchtower:
-    image: containrrr/watchtower
-    container_name: derp-watchtower
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_POLL_INTERVAL=3600
-      - WATCHTOWER_INCLUDE_STOPPED=true
-    networks:
-      - derp-network
-    profiles:
-      - monitoring
-
-networks:
-  derp-network:
-    driver: bridge
+      start_period: 10s
 
 volumes:
-  derp-data:
-  derp-logs:
+  derper_data:
+    driver: local
+
+networks:
+  derper_net:
+    driver: bridge
