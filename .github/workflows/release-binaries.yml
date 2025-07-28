@@ -19,12 +19,29 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v5  
       with:
-        go-version: '1.24'
+        go-version: '1.23'
 
     - name: Build all platform binaries
       run: |
+        # 创建临时 Go 模块
+        mkdir -p build-temp
+        cd build-temp
+        go mod init build-derper
+        go get tailscale.com/cmd/derper@v1.82.1
+        
+        # 创建简单的 main.go
+        cat > main.go << 'EOF'
+        package main
+        
+        import "tailscale.com/cmd/derper"
+        
+        func main() {
+            derper.Main()
+        }
+        EOF
+        
         # 定义要构建的平台
         platforms=(
           "linux/amd64"
@@ -37,7 +54,7 @@ jobs:
           "freebsd/amd64"
         )
         
-        mkdir -p dist
+        mkdir -p ../dist
         
         for platform in "${platforms[@]}"; do
           IFS='/' read -r goos goarch goarm <<< "$platform"
@@ -55,33 +72,40 @@ jobs:
             binary_name="${{ env.BINARY_NAME }}-${goos}-${goarch}${ext}"
           fi
           
-          echo "🔨 Building $binary_name..."
+          echo "🔨 Building $binary_name for $goos/$goarch..."
           
           # 交叉编译
           env CGO_ENABLED=0 GOOS=$goos GOARCH=$goarch GOARM=$goarm \
-            go install -ldflags="-s -w" tailscale.com/cmd/derper@v1.82.1
+            go build -a -ldflags="-s -w" -o "../dist/$binary_name" .
           
-          # 从GOBIN目录复制并重命名
-          if [ -f "$HOME/go/bin/derper${ext}" ]; then
-            cp "$HOME/go/bin/derper${ext}" "dist/$binary_name"
-          elif [ -f "$HOME/go/bin/${goos}_${goarch}/derper${ext}" ]; then
-            cp "$HOME/go/bin/${goos}_${goarch}/derper${ext}" "dist/$binary_name"
+          # 验证文件生成
+          if [ -f "../dist/$binary_name" ]; then
+            echo "✅ Successfully built: $binary_name ($(stat -c%s "../dist/$binary_name" 2>/dev/null || stat -f%z "../dist/$binary_name" 2>/dev/null || echo "unknown") bytes)"
           else
-            echo "❌ Binary not found for $platform"
-            ls -la "$HOME/go/bin/"
-            continue
+            echo "❌ Failed to build: $binary_name"
+            exit 1
           fi
-          
-          # 创建压缩包
-          cd dist
-          if [ "$goos" = "windows" ]; then
-            zip "${binary_name%.exe}.zip" "$binary_name" ../scripts/* ../README.md
-          else
-            tar -czf "${binary_name}.tar.gz" "$binary_name" ../scripts/start.sh ../scripts/deploy.sh ../README.md
+        done
+        
+        cd ..
+        
+        # 创建压缩包
+        for file in dist/derper-*; do
+          if [ -f "$file" ]; then
+            basename=$(basename "$file")
+            
+            if [[ "$basename" == *".exe" ]]; then
+              # Windows 压缩包
+              zip_name="${basename%.exe}.zip"
+              zip "dist/$zip_name" "$file" scripts/start.sh scripts/start.bat scripts/deploy.sh README.md
+              echo "📦 Created: $zip_name"
+            else
+              # Unix 压缩包
+              tar_name="${basename}.tar.gz"
+              tar -czf "dist/$tar_name" "$file" scripts/start.sh scripts/deploy.sh README.md
+              echo "📦 Created: $tar_name"
+            fi
           fi
-          cd ..
-          
-          echo "✅ Built: $binary_name"
         done
         
         echo "📦 Build completed. Files in dist/:"

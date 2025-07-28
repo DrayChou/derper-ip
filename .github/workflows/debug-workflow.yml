@@ -1,0 +1,36 @@
+name: Debug Workflow
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Debug environment
+      run: |
+        echo "=== Environment Info ==="
+        echo "GitHub ref: ${{ github.ref }}"
+        echo "GitHub ref name: ${{ github.ref_name }}"
+        echo "GitHub event name: ${{ github.event_name }}"
+        echo "GitHub sha: ${{ github.sha }}"
+        echo "Working directory: $(pwd)"
+        
+        echo -e "\n=== Repository structure ==="
+        find . -type f -name "*.yml" -o -name "*.yaml" | head -20
+        
+        echo -e "\n=== Scripts directory ==="
+        ls -la scripts/ || echo "Scripts directory not found"
+        
+        echo -e "\n=== GitHub Actions workflows ==="
+        ls -la .github/workflows/
+        
+        echo -e "\n=== Git status ==="
+        git status || echo "Not a git repository"
+        
+        echo -e "\n=== Git tags ==="
+        git tag --list || echo "No tags found"
