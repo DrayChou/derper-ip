@@ -5,7 +5,7 @@ FROM golang:1.24-alpine AS builder
 RUN apk add --no-cache ca-certificates
 
 # Install specific stable version to avoid build issues
-RUN go install tailscale.com/cmd/derper@v1.82.1
+RUN go install tailscale.com/cmd/derper@latest
 
 # Create a minimal runtime image
 FROM alpine:latest

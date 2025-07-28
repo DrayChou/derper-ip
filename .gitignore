@@ -56,7 +56,9 @@ __pycache__/
 .pytest_cache/
 
 # Go build artifacts (if building locally)
-*.exe
+derper
+derper.exe
+derper-*
 *.exe~
 *.dll
 *.so
