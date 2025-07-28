@@ -1,0 +1,146 @@
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+env:
+  BINARY_NAME: derper
+  
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: Build all platforms
+      run: |
+        echo "🚀 Building cross-platform binaries..."
+        
+        # 创建构建环境
+        mkdir -p build
+        cd build
+        go mod init build-derper
+        go get tailscale.com/cmd/derper@v1.82.1
+        
+        cat > main.go << 'EOF'
+        package main
+        
+        import "tailscale.com/cmd/derper"
+        
+        func main() {
+            derper.Main()
+        }
+        EOF
+        
+        # 创建输出目录
+        mkdir -p ../dist
+        
+        # 定义平台列表
+        declare -A platforms=(
+          ["linux-amd64"]="linux amd64"
+          ["linux-arm64"]="linux arm64" 
+          ["linux-armv7"]="linux arm 7"
+          ["windows-amd64"]="windows amd64"
+          ["windows-arm64"]="windows arm64"
+          ["darwin-amd64"]="darwin amd64"
+          ["darwin-arm64"]="darwin arm64"
+          ["freebsd-amd64"]="freebsd amd64"
+        )
+        
+        # 构建所有平台
+        for platform in "${!platforms[@]}"; do
+          IFS=' ' read -r goos goarch goarm <<< "${platforms[$platform]}"
+          
+          ext=""
+          if [ "$goos" = "windows" ]; then
+            ext=".exe"
+          fi
+          
+          binary_name="${BINARY_NAME}-${platform}${ext}"
+          echo "🔨 Building $binary_name..."
+          
+          if [ -n "$goarm" ]; then
+            env CGO_ENABLED=0 GOOS=$goos GOARCH=$goarch GOARM=$goarm \
+              go build -a -ldflags="-s -w" -o "../dist/$binary_name" .
+          else
+            env CGO_ENABLED=0 GOOS=$goos GOARCH=$goarch \
+              go build -a -ldflags="-s -w" -o "../dist/$binary_name" .
+          fi
+          
+          if [ -f "../dist/$binary_name" ]; then
+            echo "✅ Built: $binary_name"
+          else
+            echo "❌ Failed: $binary_name"
+            exit 1
+          fi
+        done
+        
+        cd ..
+        echo "📦 All builds completed:"
+        ls -la dist/
+
+    - name: Create archives
+      run: |
+        echo "📦 Creating release archives..."
+        mkdir -p archives
+        
+        for binary in dist/${BINARY_NAME}-*; do
+          if [ -f "$binary" ]; then
+            basename=$(basename "$binary")
+            
+            if [[ "$basename" == *.exe ]]; then
+              # Windows ZIP
+              archive="${basename%.exe}.zip"
+              zip -j "archives/$archive" "$binary" scripts/start.sh scripts/start.bat scripts/deploy.sh README.md
+            else
+              # Unix TAR.GZ  
+              archive="${basename}.tar.gz"
+              tar -czf "archives/$archive" -C dist "$(basename "$binary")" -C ../scripts start.sh deploy.sh -C .. README.md
+            fi
+            
+            echo "📦 Created: $archive"
+          fi
+        done
+        
+        ls -la archives/
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        name: "DERP Server ${{ github.ref_name }}"
+        body: |
+          ## 🚀 Tailscale DERP Server ${{ github.ref_name }}
+          
+          ### 📦 支持平台
+          - **Linux**: AMD64, ARM64, ARMv7
+          - **Windows**: AMD64, ARM64  
+          - **macOS**: Intel, Apple Silicon
+          - **FreeBSD**: AMD64
+          
+          ### 🎯 快速开始
+          ```bash
+          # 下载并解压
+          wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/derper-linux-amd64.tar.gz
+          tar -xzf derper-linux-amd64.tar.gz
+          
+          # 启动服务
+          ./start.sh YOUR_SERVER_IP 9003 9004
+          ```
+          
+          ### 📋 包含文件
+          - 跨平台二进制文件
+          - 启动脚本 (start.sh, start.bat)
+          - 部署脚本 (deploy.sh)
+          - 完整文档 (README.md)
+        files: archives/*
+        draft: false
