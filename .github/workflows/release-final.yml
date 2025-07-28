@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+    - uses: actions/checkout@v4
+    
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+    
+    - name: Build Binaries
+      run: |
+        echo "🚀 Building derper for all platforms..."
+        
+        mkdir -p dist
+        
+        # 定义平台
+        platforms=(
+          "linux amd64"
+          "linux arm64" 
+          "linux arm 7"
+          "windows amd64"
+          "darwin amd64"
+          "darwin arm64"
+        )
+        
+        # 为每个平台构建
+        for platform in "${platforms[@]}"; do
+          IFS=' ' read -r goos goarch goarm <<< "$platform"
+          
+          echo "Building for $goos/$goarch..."
+          
+          ext=""
+          if [ "$goos" = "windows" ]; then
+            ext=".exe"
+          fi
+          
+          name="derper-$goos-$goarch"
+          if [ -n "$goarm" ]; then
+            name="derper-$goos-${goarch}v$goarm"
+          fi
+          
+          # 设置输出路径并构建
+          GOBIN="$PWD/dist" env CGO_ENABLED=0 GOOS=$goos GOARCH=$goarch GOARM=$goarm \
+            go install -ldflags="-s -w" tailscale.com/cmd/derper@latest
+          
+          # 重命名为平台特定名称
+          if [ -f "dist/derper$ext" ]; then
+            mv "dist/derper$ext" "dist/$name$ext"
+            echo "✅ Built: $name$ext"
+          else
+            echo "❌ Failed to build $name$ext"
+            ls -la dist/
+          fi
+        done
+        
+        echo "📦 Build results:"
+        ls -la dist/
+    
+    - name: Create Archives
+      run: |
+        cd dist
+        for file in derper-*; do
+          if [ -f "$file" ]; then
+            if [[ "$file" == *.exe ]]; then
+              zip "${file%.exe}.zip" "$file" ../scripts/* ../README.md
+            else
+              tar -czf "$file.tar.gz" "$file" ../scripts/start.sh ../scripts/deploy.sh ../README.md
+            fi
+          fi
+        done
+        ls -la
+    
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: dist/*
+        body: |
+          ## DERP Server ${{ github.ref_name }}
+          
+          下载对应平台的文件，解压后运行：
+          ```bash
+          ./start.sh YOUR_SERVER_IP 9003 9004
+          ```
