@@ -1,23 +1,17 @@
 # Use Go 1.24 as the base image
 FROM golang:1.24-alpine AS builder
 
-# Set working directory
-WORKDIR /app
+# Install ca-certificates
+RUN apk add --no-cache ca-certificates
 
-# Install git and ca-certificates
-RUN apk add --no-cache git ca-certificates
-
-# Clone Tailscale repository
-RUN git clone https://github.com/tailscale/tailscale.git .
-
-# Build the derper binary
-RUN go build -o derper ./cmd/derper
+# Install specific stable version to avoid build issues
+RUN go install tailscale.com/cmd/derper@v1.82.1
 
 # Create a minimal runtime image
 FROM alpine:latest
 
-# Install ca-certificates for HTTPS
-RUN apk --no-cache add ca-certificates
+# Install ca-certificates and openssl for certificate generation
+RUN apk --no-cache add ca-certificates openssl
 
 # Create a non-root user
 RUN addgroup -g 1000 derp && \
@@ -27,8 +21,8 @@ RUN addgroup -g 1000 derp && \
 RUN mkdir -p /var/lib/derper && \
     chown -R derp:derp /var/lib/derper
 
-# Copy the derper binary from builder stage
-COPY --from=builder /app/derper /usr/local/bin/derper
+# Copy the derper binary from builder stage (from GOPATH)
+COPY --from=builder /go/bin/derper /usr/local/bin/derper
 
 # Copy the startup script
 COPY start.sh /usr/local/bin/start.sh

@@ -1,17 +1,14 @@
 #!/bin/sh
 
-# Set default values if environment variables are not set
+# Set default values - use IP mode by default
 DERP_HOSTNAME=${DERP_HOSTNAME:-localhost}
 DERP_HTTP_PORT=${DERP_HTTP_PORT:-9003}
 DERP_STUN_PORT=${DERP_STUN_PORT:-9004}
-DERP_VERIFY_CLIENTS=${DERP_VERIFY_CLIENTS:-false}
-DERP_CERT_MODE=${DERP_CERT_MODE:-manual}
-DERP_CERT_DIR=${DERP_CERT_DIR:-/var/lib/derper}
-DERP_LOG_LEVEL=${DERP_LOG_LEVEL:-info}
+DERP_VERIFY_CLIENTS=${DERP_VERIFY_CLIENTS:-true}
 
-# Create necessary directories
-mkdir -p /var/log/derper
-mkdir -p $DERP_CERT_DIR
+# Create certificate directory
+CERT_DIR="/var/lib/derper"
+mkdir -p $CERT_DIR
 
 # Print configuration
 echo "Starting DERP server with configuration:"
@@ -19,26 +16,27 @@ echo "  Hostname: $DERP_HOSTNAME"
 echo "  HTTP Port: $DERP_HTTP_PORT"
 echo "  STUN Port: $DERP_STUN_PORT"
 echo "  Verify Clients: $DERP_VERIFY_CLIENTS"
-echo "  Cert Mode: $DERP_CERT_MODE"
-echo "  Cert Directory: $DERP_CERT_DIR"
-echo "  Log Level: $DERP_LOG_LEVEL"
+echo "  Certificate Directory: $CERT_DIR"
 
-# Create derper configuration file
-cat > /tmp/derper.json << EOF
-{
-  "Hostname": "$DERP_HOSTNAME",
-  "CertMode": "$DERP_CERT_MODE",
-  "CertDir": "$DERP_CERT_DIR",
-  "Addr": ":$DERP_HTTP_PORT",
-  "HTTPPort": -1,
-  "STUNPort": $DERP_STUN_PORT,
-  "VerifyClients": $DERP_VERIFY_CLIENTS
-}
-EOF
+# Debug information
+echo ""
+echo "=== Debug Info ==="
+/usr/local/bin/derper --version 2>&1 || echo "No version info"
+echo ""
 
-echo "Created configuration file /tmp/derper.json:"
-cat /tmp/derper.json
+# Change to certificate directory
+cd $CERT_DIR
 
-# Start derper with config file
-echo "Starting derper with config file..."
-exec /usr/local/bin/derper -c /tmp/derper.json
+# Use exact same command as your production server (without config file)
+echo "Starting derper with production-like command..."
+
+# Build command exactly like production
+DERPER_CMD="/usr/local/bin/derper --hostname=$DERP_HOSTNAME -certmode manual -certdir ./ -http-port -1 -a :$DERP_HTTP_PORT -stun-port $DERP_STUN_PORT"
+
+# Add verify-clients if enabled
+if [ "$DERP_VERIFY_CLIENTS" = "true" ]; then
+    DERPER_CMD="$DERPER_CMD -verify-clients"
+fi
+
+echo "Command: $DERPER_CMD"
+exec $DERPER_CMD

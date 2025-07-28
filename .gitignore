@@ -123,3 +123,12 @@ Desktop.ini
 # Configuration overrides
 config.local.*
 settings.local.*
+
+# PM2 and deployment history files
+history
+*.history
+
+# Debug and test files
+debug.sh
+start-alt.sh
+test-local.env
