@@ -27,15 +27,7 @@ jobs:
         go get tailscale.com/cmd/derper@latest
         
         # 创建 main.go
-        cat > main.go << 'EOF'
-package main
-
-import "tailscale.com/cmd/derper"
-
-func main() {
-    derper.Main()
-}
-EOF
+        printf 'package main\n\nimport "tailscale.com/cmd/derper"\n\nfunc main() {\n    derper.Main()\n}\n' > main.go
         
         echo "✅ Build environment ready"
 
