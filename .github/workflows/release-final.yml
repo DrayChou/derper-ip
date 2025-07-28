@@ -15,56 +15,70 @@ jobs:
     
     - uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
+        go-version: '1.24'
     
-    - name: Build Binaries
+    - name: Prepare Build Environment
+      run: |
+        echo "📥 Setting up build environment..."
+        mkdir -p dist
+        
+        # 初始化 Go 模块
+        go mod init build-derper
+        go get tailscale.com/cmd/derper@latest
+        
+        # 创建 main.go
+        cat > main.go << 'EOF'
+package main
+
+import "tailscale.com/cmd/derper"
+
+func main() {
+    derper.Main()
+}
+EOF
+        
+        echo "✅ Build environment ready"
+
+    - name: Build All Platforms
       run: |
         echo "🚀 Building derper for all platforms..."
         
-        mkdir -p dist
-        
         # 定义平台
-        platforms=(
-          "linux amd64"
-          "linux arm64" 
-          "linux arm 7"
-          "windows amd64"
-          "darwin amd64"
-          "darwin arm64"
+        declare -A platforms=(
+          ["linux-amd64"]="linux amd64"
+          ["linux-arm64"]="linux arm64" 
+          ["linux-armv7"]="linux arm 7"
+          ["windows-amd64"]="windows amd64"
+          ["darwin-amd64"]="darwin amd64"
+          ["darwin-arm64"]="darwin arm64"
         )
         
-        # 为每个平台构建
-        for platform in "${platforms[@]}"; do
-          IFS=' ' read -r goos goarch goarm <<< "$platform"
+        # 构建所有平台
+        for name in "${!platforms[@]}"; do
+          IFS=' ' read -r goos goarch goarm <<< "${platforms[$name]}"
           
-          echo "Building for $goos/$goarch..."
+          echo "🔨 Building $name..."
           
           ext=""
           if [ "$goos" = "windows" ]; then
             ext=".exe"
           fi
           
-          name="derper-$goos-$goarch"
-          if [ -n "$goarm" ]; then
-            name="derper-$goos-${goarch}v$goarm"
-          fi
+          # 交叉编译
+          env CGO_ENABLED=0 GOOS=$goos GOARCH=$goarch GOARM=$goarm \
+            go build -ldflags="-s -w" -o "dist/derper-$name$ext" .
           
-          # 设置输出路径并构建
-          GOBIN="$PWD/dist" env CGO_ENABLED=0 GOOS=$goos GOARCH=$goarch GOARM=$goarm \
-            go install -ldflags="-s -w" tailscale.com/cmd/derper@latest
-          
-          # 重命名为平台特定名称
-          if [ -f "dist/derper$ext" ]; then
-            mv "dist/derper$ext" "dist/$name$ext"
-            echo "✅ Built: $name$ext"
+          if [ -f "dist/derper-$name$ext" ]; then
+            size=$(du -h "dist/derper-$name$ext" | cut -f1)
+            echo "✅ Built: derper-$name$ext ($size)"
           else
-            echo "❌ Failed to build $name$ext"
-            ls -la dist/
+            echo "❌ Failed: derper-$name$ext"
+            exit 1
           fi
         done
         
-        echo "📦 Build results:"
-        ls -la dist/
+        echo "📦 All builds completed:"
+        ls -lh dist/
     
     - name: Create Archives
       run: |
